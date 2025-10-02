@@ -105,7 +105,7 @@ export default function PlayersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Upcoming Matches</CardTitle>
-          <CardDescription>Matches you've joined or organized</CardDescription>
+          <CardDescription>Matches you&apos;ve joined or organized</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">

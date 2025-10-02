@@ -64,7 +64,7 @@ export function useBookingSlots({ venue, courtId, selectedDate }: UseBookingSlot
     (timeSlot: string): boolean => {
       return matches.some(match =>
         match.time_slots.includes(timeSlot) &&
-        match.payment_status !== 'cancelled'
+        !match.is_cancelled
       );
     },
     [matches]
@@ -83,7 +83,7 @@ export function useBookingSlots({ venue, courtId, selectedDate }: UseBookingSlot
     (timeSlot: string): Match | undefined => {
       return matches.find(match =>
         match.time_slots.includes(timeSlot) &&
-        match.payment_status !== 'cancelled'
+        !match.is_cancelled
       );
     },
     [matches]

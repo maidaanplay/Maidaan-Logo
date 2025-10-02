@@ -40,7 +40,7 @@ const bookingFormSchema = z.object({
   bookerContact: z
     .string()
     .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number"),
-  price: z.coerce.number().min(0, "Price must be positive"),
+  price: z.number().min(0, "Price must be positive"),
 });
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>;

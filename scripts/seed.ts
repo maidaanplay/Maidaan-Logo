@@ -42,8 +42,12 @@ async function seedData() {
     } else if (authError) {
       console.error('Error creating admin user:', authError);
       throw authError;
-    } else {
+    } else if (authData?.user) {
       console.log('✅ Admin user created:', authData.user.id);
+    }
+
+    if (!authData?.user) {
+      throw new Error('Failed to get admin user');
     }
 
     const adminUserId = authData.user.id;
