@@ -27,28 +27,32 @@ git push origin main
 
 ### 3. Configure Environment Variables
 
-In the Vercel project settings, add the following environment variables:
+**IMPORTANT:** Add environment variables in Vercel dashboard BEFORE deploying.
 
-#### Required Variables
+1. In Vercel, go to your project → **Settings** → **Environment Variables**
+2. Click **Add New** and add each variable:
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-```
+#### Variable 1: NEXT_PUBLIC_SUPABASE_URL
+- **Key:** `NEXT_PUBLIC_SUPABASE_URL`
+- **Value:** `https://phnvrgxurctcnyuajqwo.supabase.co` (or your Supabase project URL)
+- **Environments:** Check all three: Production, Preview, Development
+- Click **Save**
 
-#### Optional (for seeding - not needed in production)
-
-```
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
-```
+#### Variable 2: NEXT_PUBLIC_SUPABASE_ANON_KEY
+- **Key:** `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Value:** Your anon key from Supabase
+- **Environments:** Check all three: Production, Preview, Development
+- Click **Save**
 
 **To get these values:**
-1. Go to your Supabase Dashboard
-2. Navigate to Settings > API
-3. Copy:
-   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon/public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - service_role key → `SUPABASE_SERVICE_ROLE_KEY` (optional)
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Go to **Settings** → **API**
+4. Copy:
+   - **Project URL** → Use as `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon/public key** → Use as `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+⚠️ **Note:** Do NOT add `SUPABASE_SERVICE_ROLE_KEY` to Vercel - it's only for local seeding.
 
 ### 4. Deploy
 
