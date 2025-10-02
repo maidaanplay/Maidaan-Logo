@@ -17,9 +17,10 @@ function getSupabaseAdmin() {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const id = params.id;
     const updates = await request.json();
 
