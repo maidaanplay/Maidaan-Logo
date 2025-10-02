@@ -47,13 +47,17 @@ export function useBookingSlots({ venue, courtId, selectedDate }: UseBookingSlot
 
   // Generate all possible time slots
   const allTimeSlots = useMemo(() => {
+    if (!venue) return [];
     return generateTimeSlots(venue);
   }, [venue]);
 
   // Categorize slots into Morning/Afternoon/Evening
   const categorizedSlots = useMemo(() => {
+    if (!venue || allTimeSlots.length === 0) {
+      return { Morning: [], Afternoon: [], Evening: [] };
+    }
     return categorizeTimeSlots(allTimeSlots);
-  }, [allTimeSlots]);
+  }, [venue, allTimeSlots]);
 
   // Check if a specific time slot is booked
   const isSlotBooked = useCallback(

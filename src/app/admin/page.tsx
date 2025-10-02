@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Home, Calendar, BarChart3 } from "lucide-react";
 import TimeSlots from "@/components/time-slots";
 import VenueHeader from "@/components/venue-header";
@@ -22,14 +23,19 @@ const navItems = [
 
 export default function AdminPage() {
   const router = useRouter();
-  const { profile, isLoading: profileLoading } = useProfileStore();
+  const { profile, isLoading: profileLoading, loadCurrentUser } = useProfileStore();
   const { selectedVenue, loadAdminVenue } = useVenueStore();
 
   const [selectedCourt, setSelectedCourt] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("home");
 
-  // Load admin's venue on mount
+  // Load current user on mount
+  useEffect(() => {
+    loadCurrentUser();
+  }, [loadCurrentUser]);
+
+  // Load admin's venue when profile loads
   useEffect(() => {
     if (profile && profile.profile_type === 'admin') {
       loadAdminVenue(profile.id);
@@ -104,11 +110,106 @@ export default function AdminPage() {
     }
   }, [profile, profileLoading, router]);
 
-  if (profileLoading || !selectedVenue || slotsLoading) {
+  if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-center space-y-6">
+          <div className="relative w-48 h-20 mx-auto">
+            <Image
+              src="/maidaan_black.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/maidaan_white.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain hidden dark:block"
+              priority
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="text-lg font-medium">Loading admin dashboard...</div>
+            <div className="text-sm text-gray-500">Checking authentication</div>
+          </div>
+          <div className="w-48 h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-blue-600 animate-pulse" style={{ width: '60%' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="relative w-48 h-20 mx-auto">
+            <Image
+              src="/maidaan_black.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/maidaan_white.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain hidden dark:block"
+              priority
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="text-lg font-medium">No authenticated user</div>
+            <div className="text-sm text-gray-500">
+              Please set up authentication or add test data to your Supabase database.
+              <br /><br />
+              See SETUP.md for instructions on running the schema and adding sample data.
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedVenue || slotsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-center space-y-6">
+          <div className="relative w-48 h-20 mx-auto">
+            <Image
+              src="/maidaan_black.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/maidaan_white.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain hidden dark:block"
+              priority
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="text-lg font-medium">Loading venue data...</div>
+            <div className="text-sm text-gray-500">
+              {!selectedVenue ? 'Fetching your venue' : 'Loading available slots'}
+            </div>
+          </div>
+          <div className="w-48 h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-blue-600 animate-pulse" style={{ width: '60%' }}></div>
+          </div>
         </div>
       </div>
     );

@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Home, Calendar, BarChart3, TrendingUp, DollarSign } from "lucide-react";
 import VenueHeader from "@/components/venue-header";
 import StatsCards from "@/components/stats-cards";
 import DailySummaryCard from "@/components/daily-summary-card";
 import BottomNav from "@/components/bottom-nav";
+import { useProfileStore } from "@/lib/stores/profile";
+import { useVenueStore } from "@/lib/stores/venue";
+import { supabase } from "@/lib/supabase";
+import { Match } from "@/lib/data";
 
-// Mock data for daily summaries (sorted latest to oldest)
-const dailySummaries = [
-  { date: "27 Sep Saturday", bookingCount: 2, revenue: 2500 },
-  { date: "26 Sep Friday", bookingCount: 5, revenue: 6250 },
-  { date: "25 Sep Thursday", bookingCount: 3, revenue: 3750 },
-  { date: "24 Sep Wednesday", bookingCount: 4, revenue: 5000 },
-  { date: "23 Sep Tuesday", bookingCount: 2, revenue: 2500 },
-  { date: "22 Sep Monday", bookingCount: 3, revenue: 3750 },
-  { date: "21 Sep Sunday", bookingCount: 6, revenue: 7500 },
-];
+interface DailySummary {
+  date: string;
+  dateString: string;
+  bookingCount: number;
+  revenue: number;
+}
 
 const navItems = [
   { id: "home", label: "Home", icon: Home },
@@ -27,7 +28,87 @@ const navItems = [
 
 export default function StatsPage() {
   const router = useRouter();
+  const { profile, loadCurrentUser } = useProfileStore();
+  const { selectedVenue, loadAdminVenue } = useVenueStore();
   const [activeTab, setActiveTab] = useState("stats");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load profile and venue
+  useEffect(() => {
+    loadCurrentUser();
+  }, [loadCurrentUser]);
+
+  useEffect(() => {
+    if (profile && profile.profile_type === 'admin') {
+      loadAdminVenue(profile.id);
+    }
+  }, [profile, loadAdminVenue]);
+
+  // Fetch all matches for the venue (last 30 days)
+  useEffect(() => {
+    const fetchMatches = async () => {
+      if (!selectedVenue) return;
+
+      setIsLoading(true);
+      try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const { data, error } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('venue_id', selectedVenue.id)
+          .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+          .eq('payment_status', 'paid')
+          .order('date', { ascending: false });
+
+        if (error) throw error;
+        setMatches(data || []);
+      } catch (error) {
+        console.error('Error fetching matches:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMatches();
+  }, [selectedVenue]);
+
+  // Group matches by date and calculate daily summaries
+  const dailySummaries = useMemo(() => {
+    const summaryMap = new Map<string, DailySummary>();
+
+    matches.forEach(match => {
+      const date = new Date(match.date);
+      const dateKey = match.date;
+
+      // Format: "27 Sep Saturday"
+      const dateString = date.toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        weekday: 'long'
+      });
+
+      if (summaryMap.has(dateKey)) {
+        const summary = summaryMap.get(dateKey)!;
+        summary.bookingCount += 1;
+        summary.revenue += match.price;
+      } else {
+        summaryMap.set(dateKey, {
+          date: dateKey,
+          dateString,
+          bookingCount: 1,
+          revenue: match.price,
+        });
+      }
+    });
+
+    // Convert to array and sort by date (newest first)
+    return Array.from(summaryMap.values())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 7); // Show last 7 days
+  }, [matches]);
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -51,9 +132,41 @@ export default function StatsPage() {
     { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
   ];
 
+  if (isLoading || !selectedVenue) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-center space-y-6">
+          <div className="relative w-48 h-20 mx-auto">
+            <Image
+              src="/maidaan_black.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/maidaan_white.png"
+              alt="Maidaan Logo"
+              fill
+              className="object-contain hidden dark:block"
+              priority
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="text-lg font-medium">Loading statistics...</div>
+            <div className="text-sm text-gray-500">Fetching booking data</div>
+          </div>
+          <div className="w-48 h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-blue-600 animate-pulse" style={{ width: '60%' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-      <VenueHeader venueName="Velocity Sports Hub" />
+      <VenueHeader venueName={selectedVenue.name} />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Header */}
@@ -90,17 +203,23 @@ export default function StatsPage() {
         {/* Daily Summaries */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Daily Breakdown</h3>
-          <div className="space-y-3">
-            {dailySummaries.map((summary, index) => (
-              <DailySummaryCard
-                key={index}
-                date={summary.date}
-                bookingCount={summary.bookingCount}
-                revenue={summary.revenue}
-                onClick={() => handleDailySummaryClick(summary.date)}
-              />
-            ))}
-          </div>
+          {dailySummaries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No bookings in the last 7 days</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {dailySummaries.map((summary, index) => (
+                <DailySummaryCard
+                  key={index}
+                  date={summary.dateString}
+                  bookingCount={summary.bookingCount}
+                  revenue={summary.revenue}
+                  onClick={() => handleDailySummaryClick(summary.date)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

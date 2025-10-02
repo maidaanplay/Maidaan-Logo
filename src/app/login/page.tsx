@@ -22,6 +22,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/lib/supabase";
+import { useProfileStore } from "@/lib/stores/profile";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -34,7 +36,9 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>("");
   const [role, setRole] = useState<string>("player");
+  const { setProfile } = useProfileStore();
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
@@ -53,18 +57,72 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
+    setError("");
+
     try {
-      // TODO: Implement Supabase authentication
-      console.log(data);
+      console.log('Attempting login with:', data.email);
+
+      // Sign in with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      console.log('Auth response:', { authData, authError });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw new Error(authError.message || 'Authentication failed');
+      }
+
+      if (!authData.user) {
+        throw new Error("Login failed - no user returned");
+      }
+
+      console.log('User authenticated:', authData.user.id);
+
+      // Fetch profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      console.log('Profile response:', { profile, profileError });
+
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          throw new Error(`No ${role} profile found for this account. Please contact support.`);
+        }
+        throw new Error(profileError.message || 'Failed to load profile');
+      }
+
+      if (!profile) {
+        throw new Error(`No ${role} profile found for this account.`);
+      }
+
+      // Check if profile type matches the role
+      if (profile.profile_type !== role) {
+        setError(`This account is registered as a ${profile.profile_type}, not a ${role}. Please use the correct login portal.`);
+        await supabase.auth.signOut();
+        return;
+      }
+
+      console.log('Login successful, setting profile:', profile);
+
+      // Set profile in store
+      setProfile(profile);
 
       // Role-based redirect
       if (role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/players");
+        router.push("/dashboard");
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Login error:", error);
+      const errorMessage = error?.message || error?.error_description || "Failed to login. Please check your credentials.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +142,11 @@ export default function LoginPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-800 dark:text-red-200">
+                  {error}
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="email"
