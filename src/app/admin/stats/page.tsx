@@ -1,0 +1,110 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Home, Calendar, BarChart3, TrendingUp, DollarSign } from "lucide-react";
+import VenueHeader from "@/components/venue-header";
+import StatsCards from "@/components/stats-cards";
+import DailySummaryCard from "@/components/daily-summary-card";
+import BottomNav from "@/components/bottom-nav";
+
+// Mock data for daily summaries (sorted latest to oldest)
+const dailySummaries = [
+  { date: "27 Sep Saturday", bookingCount: 2, revenue: 2500 },
+  { date: "26 Sep Friday", bookingCount: 5, revenue: 6250 },
+  { date: "25 Sep Thursday", bookingCount: 3, revenue: 3750 },
+  { date: "24 Sep Wednesday", bookingCount: 4, revenue: 5000 },
+  { date: "23 Sep Tuesday", bookingCount: 2, revenue: 2500 },
+  { date: "22 Sep Monday", bookingCount: 3, revenue: 3750 },
+  { date: "21 Sep Sunday", bookingCount: 6, revenue: 7500 },
+];
+
+const navItems = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "book", label: "Book", icon: Calendar },
+  { id: "stats", label: "Stats", icon: BarChart3 },
+];
+
+export default function StatsPage() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("stats");
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (tabId === "home") {
+      router.push("/admin");
+    } else if (tabId === "book") {
+      router.push("/admin");
+    }
+  };
+
+  const handleDailySummaryClick = (date: string) => {
+    router.push(`/admin/stats/${encodeURIComponent(date)}`);
+  };
+
+  // Calculate overall stats
+  const totalBookings = dailySummaries.reduce((sum, day) => sum + day.bookingCount, 0);
+  const totalRevenue = dailySummaries.reduce((sum, day) => sum + day.revenue, 0);
+
+  const stats = [
+    { label: "Total Bookings", value: totalBookings },
+    { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <VenueHeader venueName="Velocity Sports Hub" />
+
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-primary" />
+            Statistics
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Overview of bookings and revenue (Last 7 days)
+          </p>
+        </div>
+
+        {/* Overall Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          {stats.map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-900 p-4 rounded-lg border"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                {index % 2 === 0 ? (
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                ) : (
+                  <DollarSign className="h-4 w-4 text-emerald-600" />
+                )}
+                <div className="text-xs text-muted-foreground">{stat.label}</div>
+              </div>
+              <div className="text-2xl font-bold">{stat.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Daily Summaries */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Daily Breakdown</h3>
+          <div className="space-y-3">
+            {dailySummaries.map((summary, index) => (
+              <DailySummaryCard
+                key={index}
+                date={summary.date}
+                bookingCount={summary.bookingCount}
+                revenue={summary.revenue}
+                onClick={() => handleDailySummaryClick(summary.date)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <BottomNav items={navItems} activeTab={activeTab} onTabChange={handleTabChange} />
+    </div>
+  );
+}
