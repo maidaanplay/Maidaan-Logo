@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -10,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useProfileStore } from "@/lib/stores/profile";
 
 interface VenueHeaderProps {
   venueName: string;
@@ -18,6 +20,14 @@ interface VenueHeaderProps {
 }
 
 export default function VenueHeader({ venueName, userInitials = "AD", avatarSrc }: VenueHeaderProps) {
+  const router = useRouter();
+  const { logout } = useProfileStore();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login?role=admin");
+  };
+
   return (
     <div className="bg-white dark:bg-gray-900 border-b sticky top-0 z-10">
       <div className="container mx-auto px-4 py-4">
@@ -35,10 +45,14 @@ export default function VenueHeader({ venueName, userInitials = "AD", avatarSrc 
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/admin/venue-profile")}>
+                Profile
+              </DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                Logout
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

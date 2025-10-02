@@ -22,12 +22,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
 import { useProfileStore } from "@/lib/stores/profile";
+import { supabase } from "@/lib/supabase";
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  phone: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number"),
+  name: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -37,92 +40,155 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [role, setRole] = useState<string>("player");
+  const [role, setRole] = useState<"admin" | "player">("player");
+  const [showNameField, setShowNameField] = useState(false);
   const { setProfile } = useProfileStore();
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
-    if (roleParam) {
+    if (roleParam === "admin" || roleParam === "player") {
       setRole(roleParam);
     }
   }, [searchParams]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { phone: "", name: "" },
   });
 
   async function onSubmit(data: LoginFormValues) {
+    console.log("=== Form submitted ===");
+    console.log("Form data:", data);
+
     setIsLoading(true);
     setError("");
 
     try {
-      console.log('Attempting login with:', data.email);
+      console.log("Checking phone:", data.phone);
+      console.log("Role:", role);
 
-      // Sign in with Supabase
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      // Test connection first
+      const { data: testData, error: testError } = await supabase
+        .from("profiles")
+        .select("count");
 
-      console.log('Auth response:', { authData, authError });
+      console.log("Test connection:", { testData, testError });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw new Error(authError.message || 'Authentication failed');
+      // Check if profile exists via API
+      console.log("Fetching profile from API...");
+      const checkResponse = await fetch(`/api/profiles?phone=${data.phone}`);
+      console.log("API response status:", checkResponse.status, checkResponse.ok);
+
+      const checkResult = await checkResponse.json();
+      console.log("Query result:", checkResult);
+
+      if (!checkResponse.ok) {
+        console.error("API returned error");
+        throw new Error(checkResult.error || 'Failed to check profile');
       }
 
-      if (!authData.user) {
-        throw new Error("Login failed - no user returned");
-      }
+      const existingProfile = checkResult.profile;
 
-      console.log('User authenticated:', authData.user.id);
+      if (existingProfile) {
+        console.log("Profile found:", existingProfile);
+        console.log("Profile type:", existingProfile.profile_type);
+        console.log("Expected role:", role);
 
-      // Fetch profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
-
-      console.log('Profile response:', { profile, profileError });
-
-      if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          throw new Error(`No ${role} profile found for this account. Please contact support.`);
+        // Profile exists - check role and login
+        if (existingProfile.profile_type !== role) {
+          console.log("Role mismatch!");
+          setError(
+            `This number is registered as a ${existingProfile.profile_type}. Please use the ${existingProfile.profile_type} login.`
+          );
+          setIsLoading(false);
+          return;
         }
-        throw new Error(profileError.message || 'Failed to load profile');
-      }
 
-      if (!profile) {
-        throw new Error(`No ${role} profile found for this account.`);
-      }
+        // Login
+        console.log("Setting profile and redirecting...");
+        setProfile(existingProfile);
+        const redirectPath = role === "admin" ? "/admin" : "/players";
+        console.log("Redirecting to:", redirectPath);
 
-      // Check if profile type matches the role
-      if (profile.profile_type !== role) {
-        setError(`This account is registered as a ${profile.profile_type}, not a ${role}. Please use the correct login portal.`);
-        await supabase.auth.signOut();
-        return;
-      }
-
-      console.log('Login successful, setting profile:', profile);
-
-      // Set profile in store
-      setProfile(profile);
-
-      // Role-based redirect
-      if (role === "admin") {
-        router.push("/admin");
+        // Use window.location for immediate redirect
+        window.location.href = redirectPath;
       } else {
-        router.push("/dashboard");
+        console.log("No profile found");
+        console.log("showNameField:", showNameField);
+        console.log("data.name:", data.name);
+
+        // Profile doesn't exist
+        if (!showNameField && !data.name) {
+          // Show name field
+          console.log("Showing name field...");
+          setShowNameField(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Create new profile
+        if (!data.name) {
+          setError("Please enter your name");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Creating profile...");
+
+        const userId = crypto.randomUUID();
+
+        console.log("Creating profile via API with data:", {
+          id: userId,
+          contact_number: data.phone,
+          profile_type: role,
+          name: data.name,
+        });
+
+        const createResponse = await fetch('/api/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: userId,
+            contact_number: data.phone,
+            profile_type: role,
+            name: data.name,
+          }),
+        });
+
+        const createResult = await createResponse.json();
+
+        console.log("Insert result:", createResult);
+
+        if (!createResponse.ok) {
+          console.error("Profile creation failed:", createResult.error);
+          throw new Error(createResult.error || 'Failed to create profile');
+        }
+
+        const newProfile = createResult.profile;
+        console.log("Profile created successfully:", newProfile);
+
+        // If admin, create a venue for them
+        if (role === "admin") {
+          try {
+            await fetch('/api/venue/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ adminId: userId }),
+            });
+          } catch (venueError) {
+            console.error('Error creating venue:', venueError);
+            // Continue even if venue creation fails
+          }
+        }
+
+        // Login with new profile
+        setProfile(newProfile);
+        const redirectPath = role === "admin" ? "/admin" : "/players";
+        window.location.href = redirectPath;
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      const errorMessage = error?.message || error?.error_description || "Failed to login. Please check your credentials.";
-      setError(errorMessage);
+      setError(error.message || "Failed to process login");
     } finally {
       setIsLoading(false);
     }
@@ -133,10 +199,10 @@ function LoginForm() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">
-            Login to Maidaan {role === "admin" ? "(Admin)" : "(Player)"}
+            {role === "admin" ? "Admin Portal" : "Player Portal"}
           </CardTitle>
           <CardDescription>
-            Enter your credentials to access your {role} account
+            Enter your phone number to continue
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,34 +213,49 @@ function LoginForm() {
                   {error}
                 </div>
               )}
+
               <FormField
                 control={form.control}
-                name="email"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="john@example.com" {...field} />
+                      <Input
+                        placeholder="9876543210"
+                        type="tel"
+                        maxLength={10}
+                        {...field}
+                        disabled={isLoading}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              {showNameField && (
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John Doe"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "Processing..." : showNameField ? "Create Account" : "Continue"}
               </Button>
             </form>
           </Form>
@@ -186,11 +267,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-lg">Loading...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+          <div className="text-lg">Loading...</div>
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

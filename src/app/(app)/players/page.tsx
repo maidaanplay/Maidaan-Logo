@@ -1,135 +1,127 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Users, Trophy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Star, Clock } from "lucide-react";
+import { Venue } from "@/lib/data";
 
 export default function PlayersPage() {
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadVenues() {
+      try {
+        const response = await fetch('/api/venue');
+        const result = await response.json();
+        setVenues(result.venues || []);
+      } catch (error) {
+        console.error('Error loading venues:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadVenues();
+  }, []);
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Player Dashboard</h2>
-          <p className="text-muted-foreground">Manage your bookings and join matches</p>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Discover Venues</h2>
+        <p className="text-muted-foreground">Browse and book sports venues near you</p>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading venues...</p>
         </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      ) : venues.length === 0 ? (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Active bookings</p>
+          <CardContent className="text-center py-12">
+            <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No venues available yet</p>
+            <p className="text-sm text-muted-foreground">Check back later for new venues</p>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {venues.map((venue) => (
+            <Card key={venue.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl">{venue.name}</CardTitle>
+                    <CardDescription className="flex items-center gap-1 mt-1">
+                      <MapPin className="h-4 w-4" />
+                      {venue.location}
+                    </CardDescription>
+                  </div>
+                  {venue.rating && (
+                    <div className="flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm font-semibold">{venue.rating}</span>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {venue.description && (
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {venue.description}
+                  </p>
+                )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Joined Matches</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Upcoming matches</p>
-          </CardContent>
-        </Card>
+                {/* Operating Hours */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {venue.operating_hours.opening_time} - {venue.operating_hours.closing_time}
+                  </span>
+                </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Favorite Venues</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Saved venues</p>
-          </CardContent>
-        </Card>
+                {/* Sports Available */}
+                {venue.courts && venue.courts.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {Array.from(new Set(venue.courts.map(c => c.sport_type))).map(sport => (
+                      <Badge key={sport} variant="secondary" className="text-xs">
+                        {sport}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Matches Played</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Total matches</p>
-          </CardContent>
-        </Card>
-      </div>
+                {/* Number of Courts */}
+                <div className="text-sm text-muted-foreground mb-4">
+                  {venue.courts?.length || 0} {venue.courts?.length === 1 ? 'Court' : 'Courts'} Available
+                </div>
 
-      {/* Main Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-emerald-600" />
-              Find Venues
-            </CardTitle>
-            <CardDescription>Discover sports venues near you</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">Browse Venues</Button>
-          </CardContent>
-        </Card>
+                {/* Amenities */}
+                {venue.amenities && venue.amenities.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {venue.amenities.slice(0, 3).map(amenity => (
+                      <Badge key={amenity} variant="outline" className="text-xs">
+                        {amenity}
+                      </Badge>
+                    ))}
+                    {venue.amenities.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{venue.amenities.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
+                )}
 
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              Join Matches
-            </CardTitle>
-            <CardDescription>Find and join upcoming matches</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">View Matches</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              My Bookings
-            </CardTitle>
-            <CardDescription>View and manage your bookings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">View Bookings</Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Upcoming Matches Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Matches</CardTitle>
-          <CardDescription>Matches you&apos;ve joined or organized</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No upcoming matches</p>
-            <p className="text-sm">Join a match to see it here</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Bookings Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Bookings</CardTitle>
-          <CardDescription>Your recent venue bookings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No recent bookings</p>
-            <p className="text-sm">Book a venue to see it here</p>
-          </div>
-        </CardContent>
-      </Card>
+                <Button className="w-full" variant="default">
+                  View Details
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

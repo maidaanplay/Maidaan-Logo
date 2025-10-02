@@ -37,9 +37,32 @@ export default function AdminPage() {
 
   // Load admin's venue when profile loads
   useEffect(() => {
-    if (profile && profile.profile_type === 'admin') {
-      loadAdminVenue(profile.id);
-    }
+    const loadVenue = async () => {
+      if (profile && profile.profile_type === 'admin') {
+        const venue = await loadAdminVenue(profile.id);
+
+        // If no venue exists, create one
+        if (!venue) {
+          try {
+            const response = await fetch('/api/venue/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ adminId: profile.id }),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              // Reload the venue
+              await loadAdminVenue(profile.id);
+            }
+          } catch (error) {
+            console.error('Error creating venue:', error);
+          }
+        }
+      }
+    };
+
+    loadVenue();
   }, [profile, loadAdminVenue]);
 
   // Set default court when venue loads

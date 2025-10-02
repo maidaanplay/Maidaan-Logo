@@ -16,34 +16,31 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: null,
   isLoading: true,
 
-  setProfile: (profile) => set({ profile, isLoading: false }),
+  setProfile: (profile) => {
+    // Persist to localStorage
+    if (profile) {
+      localStorage.setItem('maidaan_profile', JSON.stringify(profile));
+    } else {
+      localStorage.removeItem('maidaan_profile');
+    }
+    set({ profile, isLoading: false });
+  },
 
   loadCurrentUser: async () => {
     set({ isLoading: true });
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // Load from localStorage
+      const storedProfile = localStorage.getItem('maidaan_profile');
 
-      if (authError || !user) {
-        set({ profile: null, isLoading: false });
-        return null;
+      if (storedProfile) {
+        const profile = JSON.parse(storedProfile);
+        set({ profile, isLoading: false });
+        return profile;
       }
 
-      // Get profile by user ID or phone
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error loading profile:', error);
-        set({ profile: null, isLoading: false });
-        return null;
-      }
-
-      set({ profile, isLoading: false });
-      return profile;
+      set({ profile: null, isLoading: false });
+      return null;
     } catch (error) {
       console.error('Error loading current user:', error);
       set({ profile: null, isLoading: false });
@@ -109,7 +106,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   },
 
   logout: async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem('maidaan_profile');
     set({ profile: null, isLoading: false });
   },
 }));

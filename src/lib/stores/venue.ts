@@ -22,13 +22,14 @@ export const useVenueStore = create<VenueStore>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      const { data: venues, error } = await supabase
-        .from('venues')
-        .select('*, courts(*), pricing_rules(*)');
+      const response = await fetch('/api/venue');
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load venues');
+      }
 
-      set({ venues: venues || [], isLoading: false });
+      set({ venues: result.venues || [], isLoading: false });
     } catch (error) {
       console.error('Error loading venues:', error);
       set({ isLoading: false });
@@ -37,15 +38,14 @@ export const useVenueStore = create<VenueStore>((set, get) => ({
 
   loadVenueById: async (id: string) => {
     try {
-      const { data: venue, error } = await supabase
-        .from('venues')
-        .select('*, courts(*), pricing_rules(*)')
-        .eq('id', id)
-        .single();
+      const response = await fetch(`/api/venue?venueId=${id}`);
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load venue');
+      }
 
-      return venue;
+      return result.venue;
     } catch (error) {
       console.error('Error loading venue:', error);
       return null;
@@ -54,16 +54,15 @@ export const useVenueStore = create<VenueStore>((set, get) => ({
 
   loadAdminVenue: async (adminId: string) => {
     try {
-      const { data: venue, error } = await supabase
-        .from('venues')
-        .select('*, courts(*), pricing_rules(*)')
-        .eq('owner_admin_id', adminId)
-        .single();
+      const response = await fetch(`/api/venue?adminId=${adminId}`);
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load venue');
+      }
 
-      set({ selectedVenue: venue });
-      return venue;
+      set({ selectedVenue: result.venue });
+      return result.venue;
     } catch (error) {
       console.error('Error loading admin venue:', error);
       return null;

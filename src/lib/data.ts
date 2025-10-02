@@ -8,7 +8,7 @@ export interface Profile {
   email?: string;
   jersey_name?: string;
   jersey_number?: number;
-  skill_level?: 'bronze' | 'silver' | 'gold';
+  skill_level?: 'beginner' | 'intermediate' | 'expert' | 'pro';
   position?: string;
   bio?: string;
   avatar_url?: string;
@@ -32,16 +32,22 @@ export interface Venue {
   description?: string;
   location: string;
   images?: string[];
+  logo_url?: string;
   rating?: number;
+  review_count?: number;
   operating_hours: {
     opening_time: string; // "06:00"
     closing_time: string; // "23:00"
   };
   cancellation_cutoff_hours: number; // e.g., 2
+  cancellation_policy?: string;
+  contact?: string;
   amenities?: string[];
   courts: Court[];
   pricing_rules: PricingRule[];
   match_ids?: string[];
+  geolocation_lat?: number;
+  geolocation_lng?: number;
   created_at: string;
   updated_at?: string;
 }
@@ -54,6 +60,9 @@ export interface Court {
   name: string; // "Basketball - Court 1"
   icon?: string;
   is_active: boolean;
+  surface_type?: string; // "Hardwood", "Clay", "Turf"
+  is_lit?: boolean; // Night play availability
+  created_at?: string;
 }
 
 export interface PricingRule {
@@ -76,11 +85,14 @@ export interface Match {
   sport_type: string;
   match_type: 'casual' | 'challenge';
   match_status: 'upcoming' | 'played';
+  skill_level?: 'beginner' | 'intermediate' | 'expert' | 'pro';
   players_list: MatchPlayer[];
   price: number;
   payment_status: 'pending' | 'paid';
   payment_method?: 'cash' | 'qr';
   is_recurring: boolean;
+  day_of_week?: number; // 0=Sunday, 1=Monday, etc.
+  recurring_booking_id?: string;
   recurring_config?: {
     frequency: 'weekly' | 'monthly';
     end_date: string;
