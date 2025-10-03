@@ -22,14 +22,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useProfileStore } from "@/lib/stores/profile";
 import { supabase } from "@/lib/supabase";
 
 const loginSchema = z.object({
-  phone: z
+  email: z
     .string()
-    .min(1, "Phone number is required")
-    .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number"),
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
   name: z.string().optional(),
 });
 
@@ -40,9 +39,9 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
   const [role, setRole] = useState<"admin" | "player">("player");
   const [showNameField, setShowNameField] = useState(false);
-  const { setProfile } = useProfileStore();
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
@@ -53,138 +52,76 @@ function LoginForm() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { phone: "", name: "" },
+    defaultValues: { email: "", name: "" },
   });
 
   async function onSubmit(data: LoginFormValues) {
-    console.log("=== Form submitted ===");
-    console.log("Form data:", data);
-
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     try {
-      console.log("Checking phone:", data.phone);
-      console.log("Role:", role);
+      // Check if user profile exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', data.email)
+        .maybeSingle();
 
-      // Test connection first
-      const { data: testData, error: testError } = await supabase
-        .from("profiles")
-        .select("count");
-
-      console.log("Test connection:", { testData, testError });
-
-      // Check if profile exists via API
-      console.log("Fetching profile from API...");
-      const checkResponse = await fetch(`/api/profiles?phone=${data.phone}`);
-      console.log("API response status:", checkResponse.status, checkResponse.ok);
-
-      const checkResult = await checkResponse.json();
-      console.log("Query result:", checkResult);
-
-      if (!checkResponse.ok) {
-        console.error("API returned error");
-        throw new Error(checkResult.error || 'Failed to check profile');
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
       }
 
-      const existingProfile = checkResult.profile;
-
       if (existingProfile) {
-        console.log("Profile found:", existingProfile);
-        console.log("Profile type:", existingProfile.profile_type);
-        console.log("Expected role:", role);
-
-        // Profile exists - check role and login
+        // Profile exists - check role match
         if (existingProfile.profile_type !== role) {
-          console.log("Role mismatch!");
           setError(
-            `This number is registered as a ${existingProfile.profile_type}. Please use the ${existingProfile.profile_type} login.`
+            `This email is registered as a ${existingProfile.profile_type}. Please use the ${existingProfile.profile_type} login.`
           );
           setIsLoading(false);
           return;
         }
 
-        // Login
-        console.log("Setting profile and redirecting...");
-        setProfile(existingProfile);
-        const redirectPath = role === "admin" ? "/admin" : "/players";
-        console.log("Redirecting to:", redirectPath);
+        // Send magic link
+        const { error: signInError } = await supabase.auth.signInWithOtp({
+          email: data.email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+          },
+        });
 
-        // Use window.location for immediate redirect
-        window.location.href = redirectPath;
+        if (signInError) throw signInError;
+
+        setSuccess("Check your email for the magic link to sign in!");
       } else {
-        console.log("No profile found");
-        console.log("showNameField:", showNameField);
-        console.log("data.name:", data.name);
-
-        // Profile doesn't exist
+        // New user - need name
         if (!showNameField && !data.name) {
-          // Show name field
-          console.log("Showing name field...");
           setShowNameField(true);
           setIsLoading(false);
           return;
         }
 
-        // Create new profile
         if (!data.name) {
           setError("Please enter your name");
           setIsLoading(false);
           return;
         }
 
-        console.log("Creating profile...");
-
-        const userId = crypto.randomUUID();
-
-        console.log("Creating profile via API with data:", {
-          id: userId,
-          contact_number: data.phone,
-          profile_type: role,
-          name: data.name,
+        // Send magic link with user metadata
+        const { error: signUpError } = await supabase.auth.signInWithOtp({
+          email: data.email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?role=${role}&name=${encodeURIComponent(data.name)}`,
+            data: {
+              name: data.name,
+              profile_type: role,
+            }
+          },
         });
 
-        const createResponse = await fetch('/api/profiles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: userId,
-            contact_number: data.phone,
-            profile_type: role,
-            name: data.name,
-          }),
-        });
+        if (signUpError) throw signUpError;
 
-        const createResult = await createResponse.json();
-
-        console.log("Insert result:", createResult);
-
-        if (!createResponse.ok) {
-          console.error("Profile creation failed:", createResult.error);
-          throw new Error(createResult.error || 'Failed to create profile');
-        }
-
-        const newProfile = createResult.profile;
-        console.log("Profile created successfully:", newProfile);
-
-        // If admin, create a venue for them
-        if (role === "admin") {
-          try {
-            await fetch('/api/venue/create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ adminId: userId }),
-            });
-          } catch (venueError) {
-            console.error('Error creating venue:', venueError);
-            // Continue even if venue creation fails
-          }
-        }
-
-        // Login with new profile
-        setProfile(newProfile);
-        const redirectPath = role === "admin" ? "/admin" : "/players";
-        window.location.href = redirectPath;
+        setSuccess("Check your email for the magic link to complete signup!");
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -202,7 +139,7 @@ function LoginForm() {
             {role === "admin" ? "Admin Portal" : "Player Portal"}
           </CardTitle>
           <CardDescription>
-            Enter your phone number to continue
+            Enter your email to continue
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -214,19 +151,24 @@ function LoginForm() {
                 </div>
               )}
 
+              {success && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">
+                  {success}
+                </div>
+              )}
+
               <FormField
                 control={form.control}
-                name="phone"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="9876543210"
-                        type="tel"
-                        maxLength={10}
+                        placeholder="you@example.com"
+                        type="email"
                         {...field}
-                        disabled={isLoading}
+                        disabled={isLoading || !!success}
                       />
                     </FormControl>
                     <FormMessage />
@@ -245,7 +187,7 @@ function LoginForm() {
                         <Input
                           placeholder="John Doe"
                           {...field}
-                          disabled={isLoading}
+                          disabled={isLoading || !!success}
                         />
                       </FormControl>
                       <FormMessage />
@@ -254,9 +196,15 @@ function LoginForm() {
                 />
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Processing..." : showNameField ? "Create Account" : "Continue"}
+              <Button type="submit" className="w-full" disabled={isLoading || !!success}>
+                {isLoading ? "Processing..." : success ? "Email Sent!" : showNameField ? "Create Account" : "Continue"}
               </Button>
+
+              {success && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Didn't receive the email? Check your spam folder or try again.
+                </p>
+              )}
             </form>
           </Form>
         </CardContent>

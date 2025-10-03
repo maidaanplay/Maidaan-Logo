@@ -6,7 +6,6 @@ interface ProfileStore {
   profile: Profile | null;
   isLoading: boolean;
   setProfile: (profile: Profile | null) => void;
-  loadProfile: (contactNumber: string) => Promise<Profile | null>;
   loadCurrentUser: () => Promise<Profile | null>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   logout: () => Promise<void>;
@@ -17,12 +16,6 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   isLoading: true,
 
   setProfile: (profile) => {
-    // Persist to localStorage
-    if (profile) {
-      localStorage.setItem('maidaan_profile', JSON.stringify(profile));
-    } else {
-      localStorage.removeItem('maidaan_profile');
-    }
     set({ profile, isLoading: false });
   },
 
@@ -30,11 +23,46 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      // Load from localStorage
-      const storedProfile = localStorage.getItem('maidaan_profile');
+      // Get current session from Supabase Auth
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (storedProfile) {
-        const profile = JSON.parse(storedProfile);
+      if (sessionError) throw sessionError;
+
+      if (!session?.user) {
+        set({ profile: null, isLoading: false });
+        return null;
+      }
+
+      // Load profile from database using authenticated user's ID
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
+      if (profile) {
+        // Calculate stats if needed
+        if (profile.matches?.length > 0) {
+          const { data: matches } = await supabase
+            .from('matches')
+            .select('*')
+            .in('id', profile.matches);
+
+          const stats = {
+            totalMatches: matches?.length || 0,
+            pointsEarned: matches?.reduce((sum: number, match: any) => {
+              return sum + (match.host_player_id === profile.id ? 50 : 10);
+            }, 0) || 0,
+            daysStreak: 0, // TODO: Implement streak calculation
+          };
+
+          profile.stats = stats;
+        }
+
         set({ profile, isLoading: false });
         return profile;
       }
@@ -44,45 +72,6 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     } catch (error) {
       console.error('Error loading current user:', error);
       set({ profile: null, isLoading: false });
-      return null;
-    }
-  },
-
-  loadProfile: async (contactNumber: string) => {
-    set({ isLoading: true });
-
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('contact_number', contactNumber)
-        .single();
-
-      if (error) throw error;
-
-      // Calculate stats if needed
-      if (profile && profile.matches?.length > 0) {
-        const { data: matches } = await supabase
-          .from('matches')
-          .select('*')
-          .in('id', profile.matches);
-
-        const stats = {
-          totalMatches: matches?.length || 0,
-          pointsEarned: matches?.reduce((sum: number, match: any) => {
-            return sum + (match.host_player_id === profile.id ? 50 : 10);
-          }, 0) || 0,
-          daysStreak: 0, // TODO: Implement streak calculation
-        };
-
-        profile.stats = stats;
-      }
-
-      set({ profile, isLoading: false });
-      return profile;
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      set({ isLoading: false });
       return null;
     }
   },
@@ -99,14 +88,21 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
       if (error) throw error;
 
-      set({ profile: { ...profile, ...updates } });
+      const updatedProfile = { ...profile, ...updates };
+      set({ profile: updatedProfile });
     } catch (error) {
       console.error('Error updating profile:', error);
+      throw error;
     }
   },
 
   logout: async () => {
-    localStorage.removeItem('maidaan_profile');
-    set({ profile: null, isLoading: false });
+    try {
+      await supabase.auth.signOut();
+      set({ profile: null, isLoading: false });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      set({ profile: null, isLoading: false });
+    }
   },
 }));
