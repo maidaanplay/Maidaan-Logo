@@ -202,7 +202,7 @@ function LoginForm() {
 
               {success && (
                 <p className="text-xs text-center text-muted-foreground">
-                  Didn't receive the email? Check your spam folder or try again.
+                  Didn&apos;t receive the email? Check your spam folder or try again.
                 </p>
               )}
             </form>
