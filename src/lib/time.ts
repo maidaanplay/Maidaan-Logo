@@ -13,13 +13,23 @@ export function formatTimeRange(times: string[]): string {
   if (times.length === 0) return "";
   if (times.length === 1) {
     const [start, end] = times[0].split('-');
-    return `${formatTo12Hour(start)}-${formatTo12Hour(end)}`;
+    const startHours = parseInt(start.split(':')[0]);
+    const endHours = parseInt(end.split(':')[0]);
+    const endPeriod = endHours >= 12 ? 'PM' : 'AM';
+    const startHours12 = startHours % 12 || 12;
+    const endHours12 = endHours % 12 || 12;
+    return `${startHours12} - ${endHours12} ${endPeriod}`;
   }
 
   // Multiple consecutive slots
   const firstStart = times[0].split('-')[0];
   const lastEnd = times[times.length - 1].split('-')[1];
-  return `${formatTo12Hour(firstStart)}-${formatTo12Hour(lastEnd)}`;
+  const startHours = parseInt(firstStart.split(':')[0]);
+  const endHours = parseInt(lastEnd.split(':')[0]);
+  const endPeriod = endHours >= 12 ? 'PM' : 'AM';
+  const startHours12 = startHours % 12 || 12;
+  const endHours12 = endHours % 12 || 12;
+  return `${startHours12} - ${endHours12} ${endPeriod}`;
 }
 
 // Parse time slot string

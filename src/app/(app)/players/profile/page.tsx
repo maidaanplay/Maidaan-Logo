@@ -75,7 +75,7 @@ export default function PlayerProfilePage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
         {/* Profile Card */}
         <Card className="overflow-hidden">
           <CardContent className="pt-6 pb-6">

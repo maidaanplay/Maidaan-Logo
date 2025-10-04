@@ -3,11 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Home, Calendar, BarChart3, TrendingUp, DollarSign } from "lucide-react";
-import VenueHeader from "@/components/venue-header";
-import StatsCards from "@/components/stats-cards";
+import { BarChart3, TrendingUp, DollarSign } from "lucide-react";
 import DailySummaryCard from "@/components/daily-summary-card";
-import BottomNav from "@/components/bottom-nav";
 import { useProfileStore } from "@/lib/stores/profile";
 import { useVenueStore } from "@/lib/stores/venue";
 import { supabase } from "@/lib/supabase";
@@ -20,17 +17,10 @@ interface DailySummary {
   revenue: number;
 }
 
-const navItems = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "book", label: "Book", icon: Calendar },
-  { id: "stats", label: "Stats", icon: BarChart3 },
-];
-
 export default function StatsPage() {
   const router = useRouter();
   const { profile, loadCurrentUser } = useProfileStore();
   const { selectedVenue, loadAdminVenue } = useVenueStore();
-  const [activeTab, setActiveTab] = useState("stats");
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -110,14 +100,6 @@ export default function StatsPage() {
       .slice(0, 7); // Show last 7 days
   }, [matches]);
 
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    if (tabId === "home") {
-      router.push("/admin");
-    } else if (tabId === "book") {
-      router.push("/admin");
-    }
-  };
 
   const handleDailySummaryClick = (date: string) => {
     router.push(`/admin/stats/${encodeURIComponent(date)}`);
@@ -165,10 +147,7 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-      <VenueHeader venueName={selectedVenue.name} />
-
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="space-y-6 py-6">
         {/* Header */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -222,8 +201,5 @@ export default function StatsPage() {
           )}
         </div>
       </div>
-
-      <BottomNav items={navItems} activeTab={activeTab} onTabChange={handleTabChange} />
-    </div>
   );
 }

@@ -29,10 +29,6 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Discover Venues</h2>
-        <p className="text-muted-foreground">Browse and book sports venues near you</p>
-      </div>
 
       {loading ? (
         <div className="text-center py-12">
@@ -49,7 +45,11 @@ export default function PlayersPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {venues.map((venue) => (
-            <Card key={venue.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card
+              key={venue.id}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => window.location.href = `/players/venues/${venue.id}`}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

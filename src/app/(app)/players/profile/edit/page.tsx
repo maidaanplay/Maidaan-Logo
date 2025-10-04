@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useProfileStore } from "@/lib/stores/profile";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 
 export default function EditPlayerProfilePage() {
   const router = useRouter();
@@ -114,19 +114,9 @@ export default function EditPlayerProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/players/profile")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Edit Profile</h2>
-          <p className="text-muted-foreground">Update your personal information</p>
-        </div>
+      <div className="mb-4">
+        <h2 className="text-3xl font-bold tracking-tight">Edit Profile</h2>
+        <p className="text-muted-foreground">Update your personal information</p>
       </div>
 
       <form onSubmit={handleSubmit}>

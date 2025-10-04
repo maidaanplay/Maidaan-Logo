@@ -62,3 +62,38 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const venueId = searchParams.get('venueId');
+
+    if (!venueId) {
+      return NextResponse.json(
+        { error: 'Venue ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const updates = await request.json();
+
+    // Update venue
+    const { data: venue, error } = await supabaseAdmin
+      .from('venues')
+      .update(updates)
+      .eq('id', venueId)
+      .select('*, courts(*), pricing_rules(*)')
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ venue });
+  } catch (error: any) {
+    console.error('Venue update error:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return NextResponse.json(
+      { error: error.message || error.hint || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

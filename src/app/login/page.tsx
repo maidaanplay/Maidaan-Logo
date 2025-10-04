@@ -30,6 +30,7 @@ const loginSchema = z.object({
     .min(1, "Email is required")
     .email("Please enter a valid email address"),
   name: z.string().optional(),
+  password: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -52,8 +53,10 @@ function LoginForm() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", name: "" },
+    defaultValues: { email: "", name: "", password: "" },
   });
+
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
@@ -61,6 +64,112 @@ function LoginForm() {
     setSuccess("");
 
     try {
+      // DEV ONLY: Password-based login/signup for testing
+      if (isDevelopment && data.password) {
+        // Check if user exists
+        const { data: existingProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', data.email)
+          .maybeSingle();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+        }
+
+        if (existingProfile) {
+          // Existing user - sign in with password
+          const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
+
+          if (signInError) throw signInError;
+          if (!authData.session) throw new Error("No session created");
+
+          // Redirect based on role
+          const redirectPath = existingProfile.profile_type === "admin" ? "/admin" : "/players";
+          router.push(redirectPath);
+          return;
+        } else {
+          // New user - need name for signup
+          if (!data.name) {
+            setShowNameField(true);
+            setError("Please enter your name to create an account");
+            setIsLoading(false);
+            return;
+          }
+
+          // Sign up new user with password
+          let { data: authData, error: signUpError } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+              data: {
+                name: data.name,
+                profile_type: role,
+              },
+            }
+          });
+
+          if (signUpError) {
+            // If user already exists, try signing in instead
+            if (signUpError.message.includes('already registered')) {
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: data.email,
+                password: data.password,
+              });
+
+              if (signInError) throw new Error('User exists but password is incorrect. Please try logging in or use a different email.');
+              if (!signInData.user) throw new Error('Failed to sign in');
+
+              // User signed in, but we still need to create profile
+              authData = signInData;
+            } else if (signUpError.message.includes('invalid')) {
+              throw new Error('This email address appears to be invalid. Please use a real email address or check your Supabase email settings.');
+            } else {
+              throw signUpError;
+            }
+          }
+          if (!authData?.user) throw new Error("No user created");
+
+          // Create profile directly
+          const { error: createProfileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              email: data.email,
+              name: data.name,
+              profile_type: role as 'admin' | 'player',
+              contact_number: authData.user.id.slice(0, 10),
+              points: 0,
+              streak: 0,
+              matches: [],
+              friends_list: []
+            });
+
+          if (createProfileError) throw createProfileError;
+
+          // If admin, create venue
+          if (role === "admin" && authData.session) {
+            try {
+              await fetch('/api/venue/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId: authData.user.id }),
+              });
+            } catch (venueError) {
+              console.error('Error creating venue:', venueError);
+            }
+          }
+
+          // Redirect based on role
+          const redirectPath = role === "admin" ? "/admin" : "/players";
+          router.push(redirectPath);
+          return;
+        }
+      }
+
       // Check if user profile exists
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
@@ -191,6 +300,30 @@ function LoginForm() {
                         />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {isDevelopment && (
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password (Dev Only)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Leave empty for magic link"
+                          type="password"
+                          {...field}
+                          disabled={isLoading || !!success}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        For testing: Use password to skip email verification
+                      </p>
                     </FormItem>
                   )}
                 />
