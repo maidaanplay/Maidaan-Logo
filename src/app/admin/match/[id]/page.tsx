@@ -18,6 +18,12 @@ import { supabase } from "@/lib/supabase";
 import { MatchCourtDateTime } from "@/components/match/match-court-datetime";
 import { MatchPayment } from "@/components/match/match-payment";
 import AppFooter from "@/components/layout/app-footer";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface Match {
   id: string;
@@ -32,6 +38,7 @@ interface Match {
   match_status: 'upcoming' | 'played';
   price: number;
   payment_status: 'pending' | 'paid';
+  payment_method?: 'cash' | 'upi';
   is_recurring: boolean;
   recurring_config: any;
   is_cancelled: boolean;
@@ -49,6 +56,7 @@ export default function AdminMatchDetailPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [court, setCourt] = useState<Court | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
 
   useEffect(() => {
     const loadMatchDetails = async () => {
@@ -83,23 +91,31 @@ export default function AdminMatchDetailPage() {
     }
   }, [id]);
 
-  const handleMarkAsPaid = async () => {
+  const handleMarkAsPaid = async (paymentMethod: 'cash' | 'upi') => {
     if (!match) return;
 
     try {
       const { error } = await supabase
         .from("matches")
-        .update({ payment_status: 'paid', payment_method: 'cash' })
+        .update({ payment_status: 'paid', payment_method: paymentMethod })
         .eq("id", match.id);
 
       if (error) throw error;
 
-      setMatch({ ...match, payment_status: 'paid' });
+      setMatch({ ...match, payment_status: 'paid', payment_method: paymentMethod });
+      setShowPaymentSheet(false);
       alert("Payment marked as paid successfully!");
     } catch (error) {
       console.error("Error updating payment:", error);
       alert("Failed to update payment status");
     }
+  };
+
+  // Check if match is upcoming (future) or already played (past)
+  const isUpcoming = () => {
+    if (!match) return false;
+    const matchDateTime = new Date(`${match.date}T${match.time_slots[0].split('-')[0]}:00`);
+    return matchDateTime > new Date();
   };
 
   const handleCancel = async () => {
@@ -200,38 +216,69 @@ export default function AdminMatchDetailPage() {
       </Card>
 
       {/* Payment */}
-      <MatchPayment price={match.price} paymentStatus={match.payment_status} />
+      <MatchPayment price={match.price} paymentStatus={match.payment_status} paymentMethod={match.payment_method} />
 
       {/* Fixed Footer with Action Buttons */}
       <AppFooter>
-        <div className="flex gap-3">
-          {!match.is_cancelled && (
+        <div className="flex gap-3 w-full">
+          {match.is_cancelled ? (
+            <div className="w-full text-center py-2">
+              <p className="text-destructive font-semibold">This booking has been cancelled</p>
+            </div>
+          ) : !isUpcoming() && match.payment_status === 'paid' ? (
+            <div className="w-full text-center py-3">
+              <p className="text-green-600 dark:text-green-400 font-semibold text-lg flex items-center justify-center gap-2">
+                <CheckCircleIcon sx={{ fontSize: 24 }} />
+                Paid and Cleared
+              </p>
+            </div>
+          ) : (
             <>
               {match.payment_status === 'pending' && (
                 <Button
-                  onClick={handleMarkAsPaid}
-                  className="flex-1 h-12 bg-green-600 hover:bg-green-700"
+                  onClick={() => setShowPaymentSheet(true)}
+                  className="flex-1 h-14 text-lg font-bold bg-green-600 hover:bg-green-700 text-white border-2 border-green-700 shadow-lg"
                 >
                   <CheckCircleIcon sx={{ fontSize: 20 }} className="mr-2" />
                   Mark as Paid
                 </Button>
               )}
-              <Button
-                onClick={handleCancel}
-                variant="destructive"
-                className="flex-1 h-12"
-              >
-                Cancel Booking
-              </Button>
+              {isUpcoming() && (
+                <Button
+                  onClick={handleCancel}
+                  variant="destructive"
+                  className="flex-1 h-14 text-lg font-bold border-2 shadow-lg"
+                >
+                  Cancel Booking
+                </Button>
+              )}
             </>
-          )}
-          {match.is_cancelled && (
-            <div className="w-full text-center py-2">
-              <p className="text-destructive font-semibold">This booking has been cancelled</p>
-            </div>
           )}
         </div>
       </AppFooter>
+
+      {/* Payment Method Selection Sheet */}
+      <Sheet open={showPaymentSheet} onOpenChange={setShowPaymentSheet}>
+        <SheetContent side="bottom" className="h-auto">
+          <SheetHeader>
+            <SheetTitle>Select Payment Method</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-3 pb-6">
+            <Button
+              onClick={() => handleMarkAsPaid('cash')}
+              className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 border-2 border-blue-700"
+            >
+              Cash Payment
+            </Button>
+            <Button
+              onClick={() => handleMarkAsPaid('upi')}
+              className="w-full h-14 text-lg bg-purple-600 hover:bg-purple-700 border-2 border-purple-700"
+            >
+              UPI/QR Payment
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

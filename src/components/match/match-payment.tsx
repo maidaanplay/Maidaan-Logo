@@ -1,30 +1,32 @@
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface MatchPaymentProps {
   price: number;
   paymentStatus: 'pending' | 'paid';
+  paymentMethod?: 'cash' | 'upi';
 }
 
-export function MatchPayment({ price, paymentStatus }: MatchPaymentProps) {
+export function MatchPayment({ price, paymentStatus, paymentMethod }: MatchPaymentProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Payment</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="pt-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
               <AttachMoneyIcon sx={{ fontSize: 28 }} className="text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-2xl font-bold text-primary">₹{price.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">
+                {paymentStatus === 'paid' && paymentMethod
+                  ? `Paid via ${paymentMethod.toUpperCase()}`
+                  : 'Total Amount'}
+              </p>
             </div>
           </div>
-          <Badge variant={paymentStatus === 'paid' ? 'default' : 'outline'} className="text-base">
+          <Badge variant={paymentStatus === 'paid' ? 'default' : 'outline'} className="text-base uppercase">
             {paymentStatus === 'paid' ? 'Paid' : 'Pending'}
           </Badge>
         </div>

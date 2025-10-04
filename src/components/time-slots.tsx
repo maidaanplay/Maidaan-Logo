@@ -29,12 +29,15 @@ export default function TimeSlots({ timeSlots, isBooked, isDisabled, onTimeClick
         // Admin view can click on booked slots to see match details.
         const isClickable = !disabled || (booked && !selectedTimes.length);
 
+        // Only disable if it's past AND not booked (past unbooked slots)
+        const shouldDisable = disabled && !booked;
+
         return (
             <Button
               key={time}
               variant={selected ? "default" : "outline"}
               onClick={() => isClickable && onTimeClick(time)}
-              disabled={disabled}
+              disabled={shouldDisable}
               className={cn("w-full justify-center tracking-wider text-xs sm:text-sm border-2", {
                 // Selected slots (subtle blue background)
                 "bg-blue-100 dark:bg-blue-950 border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900": selected,

@@ -123,8 +123,7 @@ export default function AdminBookingPage() {
         match_type: 'casual',
         match_status: 'upcoming',
         price: data.price,
-        payment_status: 'paid',
-        payment_method: 'cash',
+        payment_status: 'pending',
       });
 
       if (error) throw error;
@@ -276,13 +275,13 @@ export default function AdminBookingPage() {
         <div className="flex flex-col gap-3 w-full">
           <div className="w-full flex justify-between items-center gap-4">
             <p className="text-muted-foreground font-medium whitespace-nowrap">Total Amount</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-lg font-bold text-primary">₹</span>
               <Input
                 type="number"
                 value={form.watch("price") || 0}
                 onChange={(e) => form.setValue("price", parseFloat(e.target.value) || 0)}
-                className="w-16 h-9 text-right text-lg font-bold text-primary border-2 border-primary/30 focus:border-primary px-2"
+                className="w-20 h-9 text-center text-lg font-bold text-primary border-2 border-primary/30 focus:border-primary px-1"
               />
             </div>
           </div>

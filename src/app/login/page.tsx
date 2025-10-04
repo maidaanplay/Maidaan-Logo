@@ -56,7 +56,7 @@ function LoginForm() {
     defaultValues: { email: "", name: "", password: "" },
   });
 
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = true; // Enable password login in all environments
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
@@ -305,29 +305,27 @@ function LoginForm() {
                 />
               )}
 
-              {isDevelopment && (
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password (Dev Only)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Leave empty for magic link"
-                          type="password"
-                          {...field}
-                          disabled={isLoading || !!success}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <p className="text-xs text-muted-foreground">
-                        For testing: Use password to skip email verification
-                      </p>
-                    </FormItem>
-                  )}
-                />
-              )}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Leave empty for magic link"
+                        type="password"
+                        {...field}
+                        disabled={isLoading || !!success}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Optional: Use password to skip email verification
+                    </p>
+                  </FormItem>
+                )}
+              />
 
               <Button type="submit" className="w-full" disabled={isLoading || !!success}>
                 {isLoading ? "Processing..." : success ? "Email Sent!" : showNameField ? "Create Account" : "Continue"}
