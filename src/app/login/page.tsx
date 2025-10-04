@@ -6,6 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+
+// Prevent static generation for this dynamic route
+export const dynamic = 'force-dynamic';
 import {
   Card,
   CardContent,
