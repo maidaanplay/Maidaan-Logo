@@ -3,13 +3,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import Image from "next/image";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +32,6 @@ import { useVenueStore } from "@/lib/stores/venue";
 import { supabase } from "@/lib/supabase";
 import { formatTimeRange, calculatePrice } from "@/lib/time";
 import AppFooter from "@/components/layout/app-footer";
-import { PublicHeader } from "@/components/layout/public-header";
 
 const bookingFormSchema = z.object({
   bookerName: z.string().min(1, "Name is required"),

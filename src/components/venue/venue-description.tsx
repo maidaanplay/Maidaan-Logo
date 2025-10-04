@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface VenueDescriptionProps {
-  description: string;
+  description?: string;
 }
 
 export function VenueDescription({ description }: VenueDescriptionProps) {
