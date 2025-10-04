@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface Court {
   id: string;
   name: string;
-  icon: string;
+  icon?: string;
   sport_type: string;
 }
 
