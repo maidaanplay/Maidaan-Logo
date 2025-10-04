@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Use service role key for bypassing RLS
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+// Create Supabase admin client lazily
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
     }
-  }
-);
+  );
+}
 
 export async function GET(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const searchParams = request.nextUrl.searchParams;
     const adminId = searchParams.get('adminId');
@@ -64,6 +67,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const searchParams = request.nextUrl.searchParams;
     const venueId = searchParams.get('venueId');
